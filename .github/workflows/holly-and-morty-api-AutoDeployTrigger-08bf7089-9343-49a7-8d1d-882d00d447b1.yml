@@ -1,0 +1,49 @@
+name: Trigger auto deployment for holly-and-morty-api
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/holly-and-morty-api-AutoDeployTrigger-08bf7089-9343-49a7-8d1d-882d00d447b1.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.HOLLYANDMORTYAPI_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.HOLLYANDMORTYAPI_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.HOLLYANDMORTYAPI_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}/api
+          _dockerfilePathKey_: _dockerfilePath_
+          _targetLabelKey_: _targetLabel_
+          registryUrl: saturnhack698ca5.azurecr.io
+          registryUsername: ${{ secrets.HOLLYANDMORTYAPI_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.HOLLYANDMORTYAPI_REGISTRY_PASSWORD }}
+          containerAppName: holly-and-morty-api
+          resourceGroup: saturn-hack
+          imageToBuild: saturnhack698ca5.azurecr.io/holly-and-morty-api:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
