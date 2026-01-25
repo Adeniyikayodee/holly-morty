@@ -3,10 +3,13 @@ import time
 import hmac
 from hashlib import sha256
 import json
+import logging
 
 from models.elevenlabs import ElevenLabsWebhook
 from core.config import settings
+from core.cosmos import cosmos_client, Containers
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
@@ -90,36 +93,33 @@ async def holly_conversation_webhook(request: Request):
         #payload_str = payload_str.replace("\\'", "'")
         webhook_data = json.loads(payload_str)
     except Exception as e:
-        print(f"Error parsing webhook payload: {e}")
-        print(f"Raw payload: {payload_str}")
+        logger.error(f"Error parsing webhook payload: {e}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid webhook payload: {str(e)}"
         )
     
-    # # Process only post_call_transcription events
+    # Process only post_call_transcription events
     if webhook_data["type"] == "post_call_transcription":
-        print(webhook_data)
-    #     print("\n" + "="*80)
-    #     print("📞 POST CALL TRANSCRIPTION RECEIVED")
-    #     print("="*80)
-    #     print(f"Agent ID: {webhook_data['data']['agent_id']}")
-    #     print(f"Conversation ID: {webhook_data['data']['conversation_id']}")
-    #     print(f"Status: {webhook_data['data']['status']}")
-    #     print(f"Call Duration: {webhook_data['data']['metadata']['call_duration_secs']}s")
-    #     print(f"Cost: {webhook_data['data']['metadata']['cost']}")
-    #     print(f"\nTranscript Summary:")
-    #     print(webhook_data['data']['analysis']['transcript_summary'])
-    #     print(f"\n📝 Full Transcript ({len(webhook_data['data']['transcript'])} turns):")
-    #     print("-"*80)
+        conversation_id = webhook_data['data']['conversation_id']
         
-    #     for turn in webhook_data['data']['transcript']:
-    #         speaker = "🤖 Agent" if turn['role'] == "agent" else "👤 User"
-    #         print(f"\n{speaker} (at {turn['time_in_call_secs']}s):")
-    #         print(f"  {turn['message']}")
+        logger.info("📞 POST CALL TRANSCRIPTION RECEIVED")
+        logger.info(f"Agent ID: {webhook_data['data']['agent_id']}")
+        logger.info(f"Conversation ID: {conversation_id}")
+        logger.info(f"Status: {webhook_data['data']['status']}")
         
-    #     print("\n" + "="*80 + "\n")
+        # Store in Cosmos DB conversations container
+        try:
+            stored_item = await cosmos_client.upsert_item(
+                container=Containers.CONVERSATIONS,
+                item=webhook_data['data'],
+                partition_key_value=conversation_id
+            )
+            logger.info(f"✅ Conversation stored in Cosmos DB: {conversation_id}")
+        except Exception as e:
+            logger.error(f"Failed to store conversation in Cosmos DB: {e}")
+            # Don't fail the webhook if storage fails
     else:
-        print(f"Received webhook event of type: {webhook_data['type']} (not processing)")
+        logger.info(f"Received webhook event of type: {webhook_data['type']} (not processing)")
     
     return {"status": "received"}

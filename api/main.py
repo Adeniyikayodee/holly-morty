@@ -1,9 +1,22 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from scalar_fastapi import get_scalar_api_reference
+from contextlib import asynccontextmanager
 
 from core.config import settings
+from core.cosmos import cosmos_client
 from routers import webhooks
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan events"""
+    # Startup: Initialize Cosmos DB containers
+    await cosmos_client.initialize_containers()
+    yield
+    # Shutdown: cleanup if needed
+    pass
+
 
 app = FastAPI(
     title=settings.app_name,
@@ -11,7 +24,8 @@ app = FastAPI(
     version=settings.app_version,
     debug=settings.debug,
     docs_url=None,  # Disable default Swagger UI
-    redoc_url=None  # Disable ReDoc
+    redoc_url=None,  # Disable ReDoc
+    lifespan=lifespan
 )
 
 # Include routers
