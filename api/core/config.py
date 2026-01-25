@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     
     # ElevenLabs Settings
     elevenlabs_webhook_secret: Optional[str] = None
+    xi_api_key: Optional[str] = None
     
     # Azure Cosmos DB Settings
     cosmos_connection_string: Optional[str] = None

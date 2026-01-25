@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from core.config import settings
 from core.cosmos import cosmos_client
-from routers import webhooks, conversations, profiles
+from routers import webhooks, conversations, profiles, calls
 
 
 @asynccontextmanager
@@ -32,6 +32,7 @@ app = FastAPI(
 app.include_router(webhooks.router)
 app.include_router(conversations.router)
 app.include_router(profiles.router)
+app.include_router(calls.router)
 
 
 @app.get("/docs", include_in_schema=False)
